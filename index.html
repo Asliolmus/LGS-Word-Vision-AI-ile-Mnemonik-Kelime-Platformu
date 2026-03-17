@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LGS Kelime Kampı - Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { 
+            --primary: #9b59b6; --secondary: #3498db; --success: #2ecc71; --error: #e74c3c; 
+            --bg: #f0f3f5; --gold: #f1c40f; --text: #2c3e50; --card: #ffffff; --border: #eee;
+        }
+        .dark-mode { 
+            --bg: #1a1a2e; --text: #e0e0e0; --card: #16213e; --border: #0f3460;
+            --primary: #bb86fc; --secondary: #03dac6;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: 0.3s; }
+        .container { width: 95%; max-width: 600px; background: var(--card); border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden; display: none; margin: 20px 0; }
+        
+        #loginScreen { width: 90%; max-width: 400px; background: var(--card); padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .login-input { width: 85%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+
+        .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: #2c3e50; color: white; }
+        .rank-badge { background: var(--gold); color: #000; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .timer-bar { height: 6px; background: linear-gradient(to right, var(--gold), #e67e22); width: 100%; transition: width 0.1s linear; }
+        
+        .menu { display: grid; grid-template-columns: repeat(5, 1fr); background: #34495e; padding: 5px; gap: 3px; }
+        .menu button { padding: 12px 2px; border: none; cursor: pointer; color: white; background: transparent; font-weight: bold; font-size: 9px; border-radius: 10px; }
+        .active-tab { background: var(--primary) !important; }
+        
+        .content { padding: 25px; min-height: 480px; text-align: center; position: relative; }
+        .card-img { width: 100%; height: 250px; object-fit: contain; margin-bottom: 10px; border-radius: 20px; background: #f9f9f9; }
+        .btn-nav { padding: 15px; border: none; border-radius: 15px; cursor: pointer; font-weight: bold; color: white; flex: 1; }
+        .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .match-btn { padding: 15px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 14px; background: var(--card); color: var(--text); font-weight: bold; transition: 0.2s; }
+        .selected { background: var(--secondary) !important; color: white; }
+        .hidden { display: none; }
+        .shake { animation: shake 0.3s ease-in-out; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
+        
+        .start-overlay { background: rgba(0,0,0,0.03); border-radius: 20px; padding: 20px; margin-top: 20px; }
+        .test-rule-box { text-align: left; font-size: 12px; background: #fdf2f2; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #ffcccc; color: #333; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <h2 style="color:var(--primary)">LGS Kelime Kampı</h2>
+    <input type="text" id="username" class="login-input" placeholder="Kullanıcı Adı"><br>
+    <input type="password" id="password" class="login-input" placeholder="Şifre"><br>
+    <button onclick="checkLogin()" class="btn-nav" style="background:var(--primary); width: 90%;">GİRİŞ YAP</button>
+    <p style="font-size: 13px; color: #e74c3c; margin-top: 20px; font-weight: bold;">Uygulama geliştirme aşamasında olduğu için şifre sabittir. Şifre 1234'dür.</p>
+</div>
+
+<div class="container" id="gameContainer">
+    <div class="status-bar">
+        <div>
+            <span id="rank" class="rank-badge">NOVICE</span>
+            <div style="font-size: 14px; margin-top: 4px;">Puan: <span id="score">0</span> | Seri: <span id="comboText">0</span></div>
+        </div>
+        <div style="font-size: 22px; cursor:pointer;" onclick="document.body.classList.toggle('dark-mode')">🌓</div>
+    </div>
+    <div id="timerBar" class="timer-bar"></div>
+    <div class="menu">
+        <button id="tab1" onclick="showTab('study')" class="active-tab">KARTLAR</button>
+        <button id="tab2" onclick="showTab('test')">TEST</button>
+        <button id="tab3" onclick="showTab('match')">EŞLEŞTİR</button>
+        <button id="tab4" onclick="showTab('write')">YAZ</button>
+        <button id="tab5" onclick="showTab('materials')">LİSTE</button>
+    </div>
+    <div class="content">
+        <div id="studyMode">
+            <img id="studyImg" class="card-img" src="">
+            <h1><span id="studyEn"></span> <span style="cursor:pointer;" onclick="speakStudy()">🔊</span></h1>
+            <h2 id="studyTr" style="color:var(--success);"></h2>
+            <div style="display:flex; gap:10px; margin-top:30px;">
+                <button class="btn-nav" style="background:#95a5a6;" onclick="changeStudy(-1)">GERİ</button>
+                <button class="btn-nav" style="background:var(--secondary);" onclick="changeStudy(1)">İLERİ</button>
+            </div>
+        </div>
+
+        <div id="testMode" class="hidden">
+            <div id="testStartUI" class="start-overlay">
+                <div class="test-rule-box">
+                   <strong>🏆 Rütbe Seviyeleri:</strong><br>
+                    • 0 - 199 Puan: Novice (Çaylak)<br>
+                    • 200 - 499 Puan: Word Hunter 🏹 (Kelime Avcısı)<br>
+                    • 500 - 999 Puan: Master ⭐ (Usta)<br>
+                    • 1000+ Puan: LGS Legend 🏆 (LGS Efsanesi)<br><br>
+                    <strong>🔥 Seri (Combo) Bonusları:</strong><br>
+                    Sadece doğru bilmek yetmez, üst üste doğru bilmek ekstra güç verir:<br>
+                    • 5 Doğru Seri: +5 Ekstra Puan<br>
+                    • 12 Doğru Seri: +10 Ekstra Puan<br>
+                    • 26 Doğru Seri: +20 Ekstra Puan<br><br>
+                    <strong>⚠️ Önemli Uyarılar:</strong><br>
+                    • <b>Hata Yaparsan:</b> Puanın silinmez ama seri (Combo) sıfırlanır.<br>
+                    • <b>Süre Biterse:</b> Yanlış cevap sayılır ve seri sıfırlanır.<br>
+                    • <b>Puan Dağılımı:</b> Test 10, Eşleştirme 5, Yazma 20 puan verir.
+                </div>
+                <button class="btn-nav" style="background:var(--success); width:100%;" onclick="initTest()">OYUNA BAŞLA</button>
+            </div>
+            <div id="testGameUI" class="hidden">
+                <div id="qText" style="font-weight:bold; font-size:17px; min-height:100px; display:flex; align-items:center; justify-content:center;"></div>
+                <div id="qOptions" class="match-grid" style="grid-template-columns: 1fr;"></div>
+            </div>
+        </div>
+
+        <div id="matchMode" class="hidden">
+             <div id="matchStartUI" class="start-overlay">
+                <p>Kelimeleri ve anlamlarını en hızlı şekilde eşleştir!</p>
+                <button class="btn-nav" style="background:var(--success); width:100%;" onclick="initMatch()">EŞLEŞTİRMEYE BAŞLA</button>
+            </div>
+            <div id="matchContainer" class="match-grid hidden"></div>
+        </div>
+        
+        <div id="writeMode" class="hidden">
+            <div id="writeStartUI" class="start-overlay">
+                <p>İngilizcesi verilen kelimenin Türkçesini yaz.</p>
+                <button class="btn-nav" style="background:var(--success); width:100%;" onclick="initWrite()">YAZMAYA BAŞLA</button>
+            </div>
+            <div id="writeGameUI" class="hidden">
+                <h1 id="writeEn" style="font-size:45px; color:var(--primary); margin-bottom: 20px;"></h1>
+                <input type="text" id="writeInput" class="match-btn" style="width:100%; text-align:center;" placeholder="Cevabı yazın..." autocomplete="off">
+                <button class="btn-nav" style="background:var(--success); width:100%; margin-top:20px;" onclick="checkWrite()">KONTROL ET</button>
+            </div>
+        </div>
+
+        <div id="materialsMode" class="hidden">
+            <p style="font-size: 12px;">Görselleri indirmek için üzerlerine tıklayın.</p>
+            <div class="match-grid" id="materialsGrid"></div>
+        </div>
+
+       <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 12px; color: #7f8c8d;">
+    Uygulama hakkındaki geri dönütleriniz için bizimle iletişime geçiniz: <b>asli.agac33@gmail.com</b>
+</div>
+</div>
+
+<script>
+    const words = [
+        { en: "OFFER", tr: "Teklif Etmek", img: "offer.png", q: "The manager made a great ______ for the project." },
+        { en: "ACCOMMODATION", tr: "Konaklama", img: "accommodation.png", q: "We need cheap ______ for our holiday." },
+        { en: "ADVENTURE", tr: "Macera", img: "adventure.png", q: "Tom loves outdoor ______." },
+        { en: "GET ON WELL WITH", tr: "İyi geçinmek", img: "getonwellwith.png", q: "I ______ my brother; we are best friends." },
+        { en: "ATTACHMENT", tr: "Eklenti", img: "attachment.png", q: "Please see the ______ for details." },
+        { en: "BACK UP", tr: "Desteklemek", img: "backup.png", q: "Friends should ...... each other." },
+        { en: "CAVING", tr: "Mağaracılık", img: "caving.png", q: "______ is exciting for cave lovers." },
+        { en: "CHOP", tr: "Doğramak", img: "chop.png", q: "First, ______ the onions into small cubes." },
+        { en: "CHORES", tr: "Ev işleri", img: "chores.png", q: "Doing the ______ is our responsibility." },
+        { en: "CONFIRM", tr: "Onaylamak", img: "confirm.png", q: "You should ______ your reservation." },
+        { en: "CURE", tr: "Tedavi", img: "cure.png", q: "Scientists want to find a ______ for this." },
+        { en: "DEPEND ON", tr: "Bağlı olmak", img: "dependon.png", q: "Success ______ hard work." },
+        { en: "DICE", tr: "Küp küp doğramak", img: "dice.png", q: "______ the potatoes and fry them." },
+        { en: "DRAIN", tr: "Süzmek", img: "drain.png", q: "______ the water after boiling." },
+        { en: "DROUGHT", tr: "Kuraklık", img: "drought.png", q: "Plants die during a long ______." },
+        { en: "DUST THE FURNITURE", tr: "mobilyaların Tozunu almak", img: "dustthefurniture.png", q: "Help me ______ before guests arrive." },
+        { en: "FASCINATING", tr: "Büyüleyici", img: "fascinating.png", q: "The city architecture is ______." },
+        { en: "FLOOD", tr: "Sel", img: "flood.png", q: "Heavy rain caused a ______." },
+        { en: "FOND OF", tr: "Düşkün olmak", img: "fondof.png", q: "I am very ______ classical music." },
+        { en: "GENEROUS", tr: "Cömert", img: "generous.png", q: "He is ______; he shares his food." },
+        { en: "GLOBAL WARMING", tr: "Küresel ısınma", img: "globalwarming.png", q: "We must stop ______." },
+        { en: "HANG ON", tr: "Beklemek", img: "hangon.png", q: "______ a minute, I need my coat." },
+        { en: "HANG UP", tr: "Telefonu kapatmak", img: "hangup.png", q: "Don't ______! I have more to say." },
+        { en: "HOLD ON", tr: "beklemek", img: "holdon.png", q: "______ please, I will connect you." },
+        { en: "HONEST", tr: "Dürüst", img: "honest.png", q: "An ______ person never tells lies." },
+        { en: "KEEN ON", tr: "Hevesli", img: "keenon.png", q: "I am ______ playing basketball." },
+        { en: "KEEP IN TOUCH", tr: "İletişimde kalmak", img: "keepintouch.png", q: "Let's ______ after you move." },
+        { en: "LOG IN", tr: "Giriş yapmak", img: "loginlogon.png", q: "You need a password to ______." },
+        { en: "MOP THE FLOOR", tr: "Yer silmek", img: "mopthefloor.png", q: "The kitchen is messy; I need to ______." },
+        { en: "NATURAL FORCES", tr: "Doğal güçler", img: "naturalforces.png", q: "Earthquakes are powerful ______." },
+        { en: "PEEL", tr: "Soymak", img: "peel.png", q: "______ the cucumber for the salad." },
+        { en: "PITCH A TENT", tr: "Çadır kurmak", img: "pitchatent.png", q: "We found a place to ______." },
+        { en: "PUT THROUGH", tr: "Bağlamak", img: "putthrough.png", q: "I will ______ you to the manager." },
+        { en: "RECIPE", tr: "Yemek tarifi", img: "recipe.png", q: "Follow the ______ for the cake." },
+        { en: "RELY ON", tr: "Güvenmek", img: "relyon.png", q: "Raylar ona güven veriyor." },
+        { en: "RESPONSIBILITY", tr: "Sorumluluk", img: "responsibility.png", q: "It is your ______ to finish it." },
+        { en: "SEARCH ENGINE", tr: "Arama motoru", img: "searchengine.png", q: "Google is a ______." },
+        { en: "SIGHTSEEING", tr: "Turistik gezi", img: "sightseeing.png", q: "We went ______ in Rome." },
+        { en: "SKYDIVING", tr: "Gökyüzü dalışı", img: "skydiving.png", q: "______ is an extreme sport." },
+        { en: "SPRINKLE", tr: "Serpmek", img: "sprinkle.png", q: "______ some salt on it." },
+        { en: "SUPPORT", tr: "Desteklemek", img: "support.png", q: "Friends ______ each other." },
+        { en: "TERRIBLE", tr: "Berbat", img: "terrible.png", q: "The traffic was ______." },
+        { en: "TERRIFIC", tr: "Müthiş", img: "terrific.png", q: "You did a ______ job." },
+        { en: "TRENDY", tr: "Modaya uygun", img: "trendy.png", q: "He likes wearing ______ clothes." },
+        { en: "TRUST", tr: "Güvenmek", img: "trust.png", q: "I ______ him; he is honest." },
+        { en: "UNBEARABLE", tr: "Katlanılmaz", img: "unbearable.png", q: "The heat was ______." },
+        { en: "UPLOAD", tr: "Yüklemek", img: "uploaddownload.png", q: "How long to ______ this video?" },
+        { en: "WHISK", tr: "Çırpmak", img: "whisk.png", q: "______ the eggs for five minutes." },
+        { en: "REFUSE", tr: "Reddetmek", img: "refuse.png", q: "He ______ my help." },
+        { en: "ACCEPT", tr: "Kabul etmek", img: "accept.png", q: "She will ______ the invitation." },
+        { en: "AGAINST", tr: "Karşı", img: "against.png", q: "Playing ______ a strong team." },
+        { en: "AMUSING", tr: "Eğlenceli", img: "amusing.png", q: "The movie was very ______." }
+    ];
+
+    let score = 0, combo = 0, lastCorrect = true, timer, timeVal = 100, studyIdx = 0, fSel = null, curTestWord = null;
+
+    function checkLogin() { if(document.getElementById('password').value === '1234') { document.getElementById('loginScreen').style.display='none'; document.getElementById('gameContainer').style.display='block'; showTab('study'); } else alert("Hatalı şifre!"); }
+    
+    function showTab(t) {
+        clearInterval(timer); document.getElementById('timerBar').style.width = '100%';
+        document.querySelectorAll('.menu button').forEach(b => b.classList.remove('active-tab'));
+        ['studyMode','testMode','matchMode','writeMode','materialsMode'].forEach(m => document.getElementById(m).classList.add('hidden'));
+        
+        if(t === 'study') { document.getElementById('studyMode').classList.remove('hidden'); document.getElementById('tab1').classList.add('active-tab'); updateStudy(); }
+        else if(t === 'test') { 
+            document.getElementById('testMode').classList.remove('hidden'); document.getElementById('tab2').classList.add('active-tab');
+            document.getElementById('testStartUI').classList.remove('hidden'); document.getElementById('testGameUI').classList.add('hidden');
+        }
+        else if(t === 'match') { 
+            document.getElementById('matchMode').classList.remove('hidden'); document.getElementById('tab3').classList.add('active-tab');
+            document.getElementById('matchStartUI').classList.remove('hidden'); document.getElementById('matchContainer').classList.add('hidden');
+        }
+        else if(t === 'write') { 
+            document.getElementById('writeMode').classList.remove('hidden'); document.getElementById('tab4').classList.add('active-tab');
+            document.getElementById('writeStartUI').classList.remove('hidden'); document.getElementById('writeGameUI').classList.add('hidden');
+        }
+        else if(t === 'materials') { document.getElementById('materialsMode').classList.remove('hidden'); document.getElementById('tab5').classList.add('active-tab'); renderList(); }
+    }
+
+    function startTimer(callback, speed = 1.5) {
+        clearInterval(timer); timeVal = 100;
+        timer = setInterval(() => {
+            timeVal -= speed;
+            document.getElementById('timerBar').style.width = timeVal + '%';
+            if(timeVal <= 0) { clearInterval(timer); triggerError(); setTimeout(callback, 500); }
+        }, 150);
+    }
+
+    function addPoints(pts) {
+        if(lastCorrect) combo++; else lastCorrect = true;
+        let bonus = 0;
+        if(combo >= 26) bonus = 20; else if(combo >= 12) bonus = 10; else if(combo >= 5) bonus = 5;
+        score += (pts + bonus);
+        document.getElementById('score').innerText = score;
+        document.getElementById('comboText').innerText = combo;
+        updateRank();
+    }
+
+    function triggerError() { 
+        lastCorrect = false; combo = 0; document.getElementById('comboText').innerText = 0;
+        document.getElementById('gameContainer').classList.add('shake');
+        setTimeout(() => document.getElementById('gameContainer').classList.remove('shake'), 400);
+    }
+
+    function updateRank() {
+        let r = "NOVICE", c = "var(--gold)";
+        if(score >= 1000) { r = "LGS LEGEND 🏆"; c = "#ff4757"; }
+        else if(score >= 500) { r = "MASTER ⭐"; c = "#2ecc71"; }
+        else if(score >= 200) { r = "WORD HUNTER 🏹"; c = "#3498db"; }
+        const b = document.getElementById('rank'); b.innerText = r; b.style.background = c;
+    }
+
+    function initTest() { document.getElementById('testStartUI').classList.add('hidden'); document.getElementById('testGameUI').classList.remove('hidden'); startTest(); }
+    function initMatch() { document.getElementById('matchStartUI').classList.add('hidden'); document.getElementById('matchContainer').classList.remove('hidden'); startMatch(); }
+    function initWrite() { document.getElementById('writeStartUI').classList.add('hidden'); document.getElementById('writeGameUI').classList.remove('hidden'); startWrite(); }
+
+    function updateStudy() { 
+        const w = words[studyIdx]; 
+        const imgEl = document.getElementById('studyImg');
+        // GitHub ve sunucu uyumu için ./ eklendi
+        imgEl.src = "./" + w.img; 
+        document.getElementById('studyEn').innerText = w.en; 
+        document.getElementById('studyTr').innerText = w.tr; 
+        
+        // Resim yükleme hatası kontrolü
+        imgEl.onerror = function() {
+            this.src = "https://via.placeholder.com/300x200?text=Resim+Bulunamadi";
+            console.error(w.img + " dosyası bulunamadı. Lütfen dosya adını kontrol edin.");
+        };
+    }
+
+    function changeStudy(d) { studyIdx = (studyIdx + d + words.length) % words.length; updateStudy(); }
+    function speakStudy() { const u = new SpeechSynthesisUtterance(words[studyIdx].en); u.lang='en-US'; window.speechSynthesis.speak(u); }
+
+    function startTest() {
+        curTestWord = words[Math.floor(Math.random()*words.length)];
+        document.getElementById('qText').innerText = curTestWord.q.replace("______", "_______");
+        let opts = [curTestWord.en]; while(opts.length<4) { let r = words[Math.floor(Math.random()*words.length)].en; if(!opts.includes(r)) opts.push(r); }
+        opts.sort(() => 0.5 - Math.random());
+        const cont = document.getElementById('qOptions'); cont.innerHTML = '';
+        opts.forEach(o => {
+            const btn = document.createElement('button'); btn.className = 'match-btn'; btn.innerText = o;
+            btn.onclick = () => { if(o === curTestWord.en) { addPoints(10); confetti(); startTest(); } else { triggerError(); startTest(); } };
+            cont.appendChild(btn);
+        });
+        startTimer(startTest, 1.5);
+    }
+
+    function startMatch() {
+        const c = document.getElementById('matchContainer'); c.innerHTML = '';
+        let pool = []; let subSet = [...words].sort(() => 0.5 - Math.random()).slice(0, 4);
+        subSet.forEach(w => { pool.push({t:w.en, p:w.tr}); pool.push({t:w.tr, p:w.en}); });
+        pool.sort(()=>0.5-Math.random()).forEach(it => {
+            const b = document.createElement('div'); b.className='match-btn'; b.innerText=it.t;
+            b.onclick=()=>{ if(!fSel) { fSel={b,it}; b.classList.add('selected'); } else {
+                if(fSel.it.p === it.t && fSel.b !== b) { b.style.visibility='hidden'; fSel.b.style.visibility='hidden'; addPoints(5); 
+                if([...c.children].every(el => el.style.visibility === 'hidden')) { confetti(); startMatch(); }
+                } else { fSel.b.classList.remove('selected'); triggerError(); } fSel=null;
+            }}; c.appendChild(b);
+        });
+        startTimer(startMatch, 0.8);
+    }
+
+    function startWrite() { 
+        curTestWord = words[Math.floor(Math.random()*words.length)]; document.getElementById('writeEn').innerText = curTestWord.en; 
+        document.getElementById('writeInput').value = ''; document.getElementById('writeInput').focus();
+        startTimer(startWrite, 1.2); 
+    }
+    function checkWrite() { if(document.getElementById('writeInput').value.trim().toLowerCase() === curTestWord.tr.toLowerCase()) { addPoints(20); confetti(); startWrite(); } else triggerError(); }
+
+    function renderList() {
+        const g = document.getElementById('materialsGrid'); g.innerHTML = '';
+        words.forEach(w => {
+            const d = document.createElement('div');
+            d.innerHTML = `<a href="./${w.img}" download="${w.en}.png"><img src="./${w.img}" style="width:100%; border-radius:10px;" onerror="this.src='https://via.placeholder.com/150?text=Hata'"><div style="font-size:10px; font-weight:bold;">${w.en}</div></a>`;
+            g.appendChild(d);
+        });
+    }
+</script>
+</body>
+</html>
